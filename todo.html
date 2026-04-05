@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo アプリ</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      padding: 40px 16px;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 32px;
+      width: 100%;
+      max-width: 480px;
+      height: fit-content;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      color: #1a1a2e;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .input-row input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-row input:focus {
+      border-color: #6366f1;
+    }
+
+    .btn-add {
+      padding: 10px 18px;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+
+    .btn-add:hover {
+      background: #4f46e5;
+    }
+
+    #todo-list {
+      list-style: none;
+      margin-bottom: 20px;
+    }
+
+    #todo-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 10px;
+      border-bottom: 1px solid #f3f4f6;
+      transition: background 0.15s;
+    }
+
+    #todo-list li:last-child {
+      border-bottom: none;
+    }
+
+    #todo-list li:hover {
+      background: #fafafa;
+      border-radius: 8px;
+    }
+
+    #todo-list li input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #6366f1;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    #todo-list li label {
+      font-size: 0.95rem;
+      color: #374151;
+      cursor: pointer;
+      flex: 1;
+      transition: color 0.2s, text-decoration 0.2s;
+    }
+
+    #todo-list li.done label {
+      text-decoration: line-through;
+      color: #9ca3af;
+    }
+
+    .empty-msg {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 0.9rem;
+      padding: 20px 0;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn-delete {
+      padding: 10px 20px;
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-delete:hover {
+      background: #dc2626;
+    }
+
+    .btn-delete:disabled {
+      background: #fca5a5;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Todo リスト</h1>
+
+    <div class="input-row">
+      <input type="text" id="task-input" placeholder="タスクを入力..." />
+      <button class="btn-add" onclick="addTask()">追加</button>
+    </div>
+
+    <ul id="todo-list"></ul>
+    <p class="empty-msg" id="empty-msg">タスクがありません</p>
+
+    <div class="footer">
+      <button class="btn-delete" id="delete-btn" onclick="deleteChecked()" disabled>
+        完了済みを削除
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let tasks = [];
+    let nextId = 0;
+
+    const input = document.getElementById('task-input');
+    const list = document.getElementById('todo-list');
+    const emptyMsg = document.getElementById('empty-msg');
+    const deleteBtn = document.getElementById('delete-btn');
+
+    let isComposing = false;
+    input.addEventListener('compositionstart', () => { isComposing = true; });
+    input.addEventListener('compositionend', () => { isComposing = false; });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !isComposing) addTask();
+    });
+
+    function addTask() {
+      const text = input.value.trim();
+      if (!text) return;
+      tasks.push({ id: nextId++, text, done: false });
+      input.value = '';
+      render();
+      input.focus();
+    }
+
+    function toggleTask(id) {
+      const task = tasks.find(t => t.id === id);
+      if (task) task.done = !task.done;
+      render();
+    }
+
+    function deleteChecked() {
+      tasks = tasks.filter(t => !t.done);
+      render();
+    }
+
+    function render() {
+      list.innerHTML = '';
+      tasks.forEach(task => {
+        const li = document.createElement('li');
+        if (task.done) li.classList.add('done');
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.id = `task-${task.id}`;
+        cb.checked = task.done;
+        cb.addEventListener('change', () => toggleTask(task.id));
+
+        const label = document.createElement('label');
+        label.htmlFor = `task-${task.id}`;
+        label.textContent = task.text;
+
+        li.appendChild(cb);
+        li.appendChild(label);
+        list.appendChild(li);
+      });
+
+      emptyMsg.style.display = tasks.length === 0 ? 'block' : 'none';
+      deleteBtn.disabled = !tasks.some(t => t.done);
+    }
+
+    render();
+  </script>
+</body>
+</html>
