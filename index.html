@@ -26,7 +26,7 @@
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
       padding: 32px;
       width: 100%;
-      max-width: 480px;
+      max-width: 520px;
       height: fit-content;
     }
 
@@ -40,10 +40,10 @@
     .input-row {
       display: flex;
       gap: 8px;
-      margin-bottom: 24px;
+      margin-bottom: 10px;
     }
 
-    .input-row input {
+    .input-row input[type="text"] {
       flex: 1;
       padding: 10px 14px;
       border: 1.5px solid #d1d5db;
@@ -53,8 +53,54 @@
       transition: border-color 0.2s;
     }
 
-    .input-row input:focus {
+    .input-row input[type="text"]:focus {
       border-color: #6366f1;
+    }
+
+    .tag-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .tag-row label {
+      font-size: 0.85rem;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+
+    .tag-row input[type="text"] {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .tag-row input[type="text"]:focus {
+      border-color: #6366f1;
+    }
+
+    .tag-suggestions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tag-suggestion {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s;
+    }
+
+    .tag-suggestion:hover {
+      opacity: 0.75;
     }
 
     .btn-add {
@@ -73,6 +119,39 @@
       background: #4f46e5;
     }
 
+    /* フィルター */
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .filter-btn {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .filter-btn.all {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .filter-btn.all.active {
+      background: #374151;
+      color: #fff;
+    }
+
+    .filter-btn.active {
+      border-color: currentColor;
+      filter: brightness(0.85);
+    }
+
+    /* タスクリスト */
     #todo-list {
       list-style: none;
       margin-bottom: 20px;
@@ -104,17 +183,32 @@
       flex-shrink: 0;
     }
 
+    .task-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
     #todo-list li label {
       font-size: 0.95rem;
       color: #374151;
       cursor: pointer;
-      flex: 1;
       transition: color 0.2s, text-decoration 0.2s;
     }
 
     #todo-list li.done label {
       text-decoration: line-through;
       color: #9ca3af;
+    }
+
+    .tag-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      width: fit-content;
     }
 
     .empty-msg {
@@ -158,6 +252,15 @@
       <input type="text" id="task-input" placeholder="タスクを入力..." />
       <button class="btn-add" onclick="addTask()">追加</button>
     </div>
+    <div class="tag-row">
+      <label>タグ:</label>
+      <input type="text" id="tag-input" placeholder="タグ名を入力（任意）" />
+      <div class="tag-suggestions" id="tag-suggestions"></div>
+    </div>
+
+    <div class="filter-bar" id="filter-bar">
+      <button class="filter-btn all active" onclick="setFilter(null)">すべて</button>
+    </div>
 
     <ul id="todo-list"></ul>
     <p class="empty-msg" id="empty-msg">タスクがありません</p>
@@ -172,26 +275,58 @@
   <script>
     let tasks = [];
     let nextId = 0;
+    let activeFilter = null;
 
-    const input = document.getElementById('task-input');
+    // タグごとの色定義
+    const TAG_COLORS = [
+      { bg: '#dbeafe', text: '#1d4ed8' },
+      { bg: '#dcfce7', text: '#15803d' },
+      { bg: '#fef9c3', text: '#a16207' },
+      { bg: '#fce7f3', text: '#be185d' },
+      { bg: '#ede9fe', text: '#6d28d9' },
+      { bg: '#ffedd5', text: '#c2410c' },
+      { bg: '#e0f2fe', text: '#0369a1' },
+      { bg: '#f1f5f9', text: '#475569' },
+    ];
+    const tagColorMap = {};
+    let colorIndex = 0;
+
+    function getTagColor(tag) {
+      if (!tagColorMap[tag]) {
+        tagColorMap[tag] = TAG_COLORS[colorIndex % TAG_COLORS.length];
+        colorIndex++;
+      }
+      return tagColorMap[tag];
+    }
+
+    const taskInput = document.getElementById('task-input');
+    const tagInput = document.getElementById('tag-input');
     const list = document.getElementById('todo-list');
     const emptyMsg = document.getElementById('empty-msg');
     const deleteBtn = document.getElementById('delete-btn');
+    const filterBar = document.getElementById('filter-bar');
+    const tagSuggestions = document.getElementById('tag-suggestions');
 
+    // 日本語入力対応
     let isComposing = false;
-    input.addEventListener('compositionstart', () => { isComposing = true; });
-    input.addEventListener('compositionend', () => { isComposing = false; });
-    input.addEventListener('keydown', e => {
+    taskInput.addEventListener('compositionstart', () => { isComposing = true; });
+    taskInput.addEventListener('compositionend', () => { isComposing = false; });
+    taskInput.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !isComposing) addTask();
+    });
+    tagInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !isComposing) taskInput.focus();
     });
 
     function addTask() {
-      const text = input.value.trim();
+      const text = taskInput.value.trim();
       if (!text) return;
-      tasks.push({ id: nextId++, text, done: false });
-      input.value = '';
+      const tag = tagInput.value.trim() || null;
+      tasks.push({ id: nextId++, text, tag, done: false });
+      taskInput.value = '';
+      tagInput.value = '';
       render();
-      input.focus();
+      taskInput.focus();
     }
 
     function toggleTask(id) {
@@ -205,9 +340,65 @@
       render();
     }
 
+    function setFilter(tag) {
+      activeFilter = tag;
+      render();
+    }
+
+    function setTagInput(tag) {
+      tagInput.value = tag;
+      tagInput.focus();
+    }
+
+    function getAllTags() {
+      const tags = new Set();
+      tasks.forEach(t => { if (t.tag) tags.add(t.tag); });
+      return [...tags];
+    }
+
     function render() {
+      // フィルターバー更新
+      const allTags = getAllTags();
+
+      // タグ候補ボタン更新
+      tagSuggestions.innerHTML = '';
+      allTags.forEach(tag => {
+        const color = getTagColor(tag);
+        const btn = document.createElement('button');
+        btn.className = 'tag-suggestion';
+        btn.textContent = tag;
+        btn.style.background = color.bg;
+        btn.style.color = color.text;
+        btn.onclick = () => setTagInput(tag);
+        tagSuggestions.appendChild(btn);
+      });
+
+      // フィルターボタン更新
+      filterBar.innerHTML = '';
+      const allBtn = document.createElement('button');
+      allBtn.className = 'filter-btn all' + (activeFilter === null ? ' active' : '');
+      allBtn.textContent = 'すべて';
+      allBtn.onclick = () => setFilter(null);
+      filterBar.appendChild(allBtn);
+
+      allTags.forEach(tag => {
+        const color = getTagColor(tag);
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn' + (activeFilter === tag ? ' active' : '');
+        btn.textContent = tag;
+        btn.style.background = color.bg;
+        btn.style.color = color.text;
+        btn.onclick = () => setFilter(activeFilter === tag ? null : tag);
+        filterBar.appendChild(btn);
+      });
+
+      // タスクリスト更新
+      const filtered = activeFilter === null
+        ? tasks
+        : tasks.filter(t => t.tag === activeFilter);
+
       list.innerHTML = '';
-      tasks.forEach(task => {
+      filtered.forEach(task => {
         const li = document.createElement('li');
         if (task.done) li.classList.add('done');
 
@@ -217,16 +408,30 @@
         cb.checked = task.done;
         cb.addEventListener('change', () => toggleTask(task.id));
 
+        const body = document.createElement('div');
+        body.className = 'task-body';
+
         const label = document.createElement('label');
         label.htmlFor = `task-${task.id}`;
         label.textContent = task.text;
+        body.appendChild(label);
+
+        if (task.tag) {
+          const color = getTagColor(task.tag);
+          const badge = document.createElement('span');
+          badge.className = 'tag-badge';
+          badge.textContent = task.tag;
+          badge.style.background = color.bg;
+          badge.style.color = color.text;
+          body.appendChild(badge);
+        }
 
         li.appendChild(cb);
-        li.appendChild(label);
+        li.appendChild(body);
         list.appendChild(li);
       });
 
-      emptyMsg.style.display = tasks.length === 0 ? 'block' : 'none';
+      emptyMsg.style.display = filtered.length === 0 ? 'block' : 'none';
       deleteBtn.disabled = !tasks.some(t => t.done);
     }
 
