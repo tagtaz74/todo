@@ -53,6 +53,7 @@ export const getList = async (queries?: MicroCMSQueries) => {
     .getList<Blog>({
       endpoint: 'blog',
       queries,
+      customRequestInit: { next: { tags: ['blog'] } },
     })
     .catch(notFound);
   return listData;
@@ -65,6 +66,7 @@ export const getDetail = async (contentId: string, queries?: MicroCMSQueries) =>
       endpoint: 'blog',
       contentId,
       queries,
+      customRequestInit: { next: { tags: ['blog'] } },
     })
     .catch(notFound);
 
@@ -77,6 +79,7 @@ export const getTagList = async (queries?: MicroCMSQueries) => {
     .getList<Tag>({
       endpoint: 'tags',
       queries,
+      customRequestInit: { next: { tags: ['tags'] } },
     })
     .catch(notFound);
 
@@ -90,6 +93,7 @@ export const getTag = async (contentId: string, queries?: MicroCMSQueries) => {
       endpoint: 'tags',
       contentId,
       queries,
+      customRequestInit: { next: { tags: ['tags'] } },
     })
     .catch(notFound);
 
